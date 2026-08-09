@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>設計評估研究</title>
+<script src="gas-config.js"></script>
+<style>
+  :root{
+    --ink:#1B2228; --sub:#5B6670; --line:#E3E7EA; --app:#F5F6F7; --card:#FFFFFF;
+    --act:#1F5EFF; --act-dk:#1747C4; --ok:#0F9D6E; --warn:#F59E0B;
+    --dark:#171B21; --dark2:#1B2129; --dline:#262E38; --dtext:#C6CFDA; --dsub:#6C7684;
+    --paper:#F7F5F0;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:#20242A;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;color:var(--ink);}
+  #phone{max-width:430px;min-height:100dvh;margin:0 auto;background:var(--app);position:relative;overflow:hidden;display:flex;flex-direction:column;}
+  @media(min-width:500px){ #phone{min-height:94vh;margin:1.5vh auto;border-radius:26px;box-shadow:0 18px 56px rgba(0,0,0,.45);} }
+
+  #hud{background:#0E1116;color:#B9C2CC;font:11px/1.5 Menlo,Consolas,monospace;padding:7px 13px;display:flex;gap:8px;flex-wrap:wrap;}
+  #hud .p{border:1px solid #2A313A;border-radius:999px;padding:1px 7px;}
+  #hud .p.c{color:#8FD3B6;border-color:#2E5546;}
+  body.formal #hud{display:none;}
+
+  .screen{display:none;flex:1;flex-direction:column;min-height:0;}
+  .screen.on{display:flex;}
+  .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;}
+  .cta{flex:none;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:var(--app);border-top:1px solid var(--line);}
+  #trial .cta{background:var(--dark);border-top:1px solid var(--dline);}
+
+  .btn{display:block;width:100%;padding:14px;border:0;border-radius:12px;background:var(--act);color:#fff;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .btn:active{background:var(--act-dk);}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);font-weight:500;}
+  .btn[disabled]{opacity:.35;pointer-events:none;}
+
+  /* 設定 */
+  #setup .scroll{display:flex;flex-direction:column;gap:14px;padding:22px 18px 6px;}
+  #setup h1{font-size:20px;margin:0;}
+  #setup .tag{font:11px/1 monospace;color:var(--sub);letter-spacing:.12em;}
+  #setup p.d{font-size:13px;color:var(--sub);margin:0;line-height:1.6;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:13px;font-weight:600;}
+  input[type=text]{padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff;font-family:inherit;}
+  .cells{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .cells button{padding:11px 5px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:12px;font-family:inherit;line-height:1.4;color:var(--sub);}
+  .cells button.sel{border-color:var(--act);color:var(--act);font-weight:700;background:#EEF3FF;}
+  .cells button b{display:block;font:12px monospace;color:var(--ink);}
+  .cells button.sel b{color:var(--act);}
+
+  /* 試驗 */
+  #trial{background:var(--dark);}
+  #bar{padding:13px 17px 9px;color:#E7ECF2;display:flex;justify-content:space-between;align-items:center;}
+  #bar .bd{font-size:14px;font-weight:700;letter-spacing:.03em;}
+  #bar .bd span{color:#7FA5FF;}
+  #step{font:11px monospace;color:var(--dsub);}
+  .card{margin:0 14px 11px;background:var(--dark2);border:1px solid var(--dline);border-radius:13px;padding:12px;color:var(--dtext);font-size:12.5px;line-height:1.6;}
+  .card .lbl{font:10px monospace;color:var(--dsub);letter-spacing:.11em;display:block;margin-bottom:5px;}
+  .card .bv{color:#E7ECF2;font-size:15.5px;display:block;margin-bottom:8px;line-height:1.5;}
+  .specs{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
+  .specs li{display:flex;gap:8px;align-items:flex-start;font-size:14.5px;color:#C6CFDA;line-height:1.5;}
+  .specs li b{color:#8FD3B6;font:10px monospace;flex:none;margin-top:3px;}
+
+  #stage{position:relative;margin:0 14px;border-radius:13px;overflow:hidden;background:var(--paper);aspect-ratio:1/1;}
+  #stage img{width:100%;height:100%;object-fit:cover;display:block;}
+  #stageHost{position:absolute;inset:0;}
+  #pad{position:absolute;inset:0;}
+  #pad path{fill:none;stroke:#232A31;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;}
+  #stage.draw, #stage.draw *{touch-action:none;}
+  #stage.lock{pointer-events:none;}
+  .grid{position:absolute;inset:0;background:
+     linear-gradient(#EFECE4 1px,transparent 1px) 0 0/100% 40px,
+     linear-gradient(90deg,#EFECE4 1px,transparent 1px) 0 0/40px 100%;opacity:.7;pointer-events:none;}
+  #hint{position:absolute;left:50%;top:62%;transform:translateX(-50%);background:rgba(20,24,30,.72);color:#fff;font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:999px;opacity:0;transition:opacity .4s;pointer-events:none;text-align:center;}
+  #hint.on{opacity:1;}
+  #ph{position:absolute;inset:0;display:grid;place-items:center;color:#B9B2A5;font:12px monospace;text-align:center;line-height:1.8;padding:20px;}
+
+  #pane{margin:12px 14px 16px;}
+  .ui{background:var(--dark2);border:1px solid var(--dline);border-radius:13px;padding:12px;color:var(--dtext);}
+  .ui .ul{font:10px monospace;letter-spacing:.11em;color:var(--dsub);display:block;margin-bottom:8px;}
+  textarea.ta{width:100%;background:#10151B;border:1px solid #2A323D;border-radius:10px;min-height:70px;padding:10px 12px;font-size:13px;color:#E7ECF2;font-family:inherit;resize:vertical;}
+  .ub{margin-top:10px;width:100%;padding:12px;border:0;border-radius:10px;background:var(--act);color:#fff;font-size:14px;font-weight:700;font-family:inherit;}
+  .ub:disabled{opacity:.4;}
+  .hint2{margin-top:8px;font-size:13px;color:var(--dsub);line-height:1.55;}
+  .tools{display:flex;gap:8px;margin-bottom:9px;}
+  .tools .mini{border:1px solid #2A323D;background:#10151B;color:#AEB9C6;border-radius:10px;padding:10px 14px;font-size:13px;font-family:inherit;}
+  #clock{font:22px monospace;color:#8FD3B6;text-align:center;margin:6px 0 2px;}
+
+  /* 問卷 */
+  #survey{background:var(--app);}
+  #survey .scroll{padding:18px 18px 6px;}
+  .pbar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-bottom:8px;}
+  .pbar i{display:block;height:100%;width:0%;background:var(--act);transition:width .25s;}
+  .prog{font:12px/1 sans-serif;color:var(--sub);text-align:center;margin:0 0 16px;}
+  .q{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 17px;min-height:34vh;display:flex;flex-direction:column;justify-content:center;}
+  .q .qt{font-size:19px;line-height:1.6;margin-bottom:18px;text-align:center;font-weight:600;}
+  .q .qsub{font-size:15.5px;color:var(--sub);text-align:center;margin:-8px 0 16px;line-height:1.55;}
+  .anch{display:flex;justify-content:space-between;font-size:14px;color:var(--sub);margin-bottom:11px;}
+  .lik{display:flex;justify-content:space-between;gap:4px;}
+  .lik button{flex:1;height:48px;max-width:46px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:17px;font-family:inherit;color:var(--sub);}
+  .lik button.sel{background:var(--act);border-color:var(--act);color:#fff;font-weight:700;}
+  .ch{display:flex;flex-direction:column;gap:9px;}
+  .ch button{padding:14px;border:1px solid var(--line);background:#fff;border-radius:12px;font-size:16px;font-family:inherit;text-align:left;line-height:1.5;color:var(--ink);}
+  .ch button.sel{border-color:var(--act);background:#EEF3FF;color:var(--act);font-weight:700;}
+  .yn{display:flex;gap:10px;}
+  .yn button{flex:1;padding:16px;border:1px solid var(--line);background:#fff;border-radius:12px;font-size:16.5px;font-family:inherit;font-weight:600;color:var(--sub);}
+  .yn button.sel{border-color:var(--act);background:#EEF3FF;color:var(--act);}
+  .qimg{width:100%;border-radius:12px;margin-bottom:14px;display:block;border:1px solid var(--line);}
+  textarea.open{width:100%;border:1px solid var(--line);border-radius:11px;min-height:120px;padding:12px;font-size:14.5px;font-family:inherit;resize:vertical;line-height:1.6;}
+  #survey .cta{display:flex;flex-direction:column;gap:8px;}
+  #sback{padding:10px;font-size:13px;}
+
+  #done{padding:28px 22px;gap:14px;overflow-y:auto;}
+  #done h2{margin:0;font-size:19px;}
+  #done .n{font-size:12.5px;color:var(--sub);line-height:1.7;margin:0;}
+  #done pre{background:#0E1116;color:#B9C2CC;font-size:10px;border-radius:12px;padding:12px;max-height:240px;overflow:auto;}
+  .ok{width:54px;height:54px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:25px;}
+</style>
+</head>
+<body>
+<div id="phone">
+
+  <div id="hud">
+    <span class="p c" id="hA">—</span>
+    <span class="p" id="hT">—</span>
+    <span class="p" id="hTheme">—</span>
+    <span class="p" id="hB">—</span>
+    <span class="p" id="hPh">—</span>
+  </div>
+
+  <!-- 設定 -->
+  <div class="screen on" id="setup">
+    <div class="scroll">
+      <p class="tag">STUDY 3 · 3×3 MIXED</p>
+      <h1>設計評估研究</h1>
+      <p class="d">因子 A＝前置執行深度（受試者間：A1 無產出／A2 文字規格／A3 手繪草圖）。因子 B＝方案符合度（受試者內：B1 完全符合／B2 部分偏離／B3 明顯偏離），以 3×3 拉丁方陣平衡主題與順序。</p>
+      <div class="field">
+        <label for="pid">受試者編號</label>
+        <input type="text" id="pid" placeholder="例如 P07">
+      </div>
+      <div class="field">
+        <label>前置執行條件</label>
+        <div class="cells" id="agrid"></div>
+      </div>
+      <p class="d">正式收案用 <code>?run=1&amp;auto=1</code>，由後端配額分派。<code>&amp;img=</code> 指定圖庫網址前綴。</p>
+    </div>
+    <div class="cta"><button class="btn" id="go">開始</button></div>
+  </div>
+
+  <!-- 試驗 -->
+  <div class="screen" id="trial">
+    <div class="scroll">
+      <div id="bar"><div class="bd">Form<span>Studio</span></div><div id="step"></div></div>
+      <div class="card" id="brief">
+        <span class="lbl">DESIGN BRIEF</span>
+        <span class="bv" id="briefT"></span>
+        <ul class="specs" id="specL"></ul>
+      </div>
+      <div id="stage">
+        <div class="grid" id="gridBg"></div>
+        <div id="stageHost"><div id="ph">畫布尚未開放</div></div>
+        <svg id="pad" viewBox="0 0 400 400" preserveAspectRatio="none"><g id="ink"></g></svg>
+        <div id="hint"></div>
+      </div>
+      <div id="pane"></div>
+    </div>
+    <div class="cta"><button class="btn" id="next" style="display:none">下一步</button></div>
+  </div>
+
+  <!-- 問卷 -->
+  <div class="screen" id="survey">
+    <div class="scroll" id="sscroll">
+      <div class="pbar"><i id="pfill"></i></div>
+      <p class="prog" id="ptxt"></p>
+      <div id="qhost"></div>
+    </div>
+    <div class="cta">
+      <button class="btn ghost" id="sback" type="button">上一題</button>
+      <button class="btn" id="snext" disabled>下一題</button>
+    </div>
+  </div>
+
+  <!-- 完成 -->
+  <div class="screen" id="done">
+    <div class="ok">✓</div>
+    <h2>全部完成，感謝您的參與</h2>
+    <p class="n" id="deb">研究說明：本研究呈現的設計方案，是研究者事先以 AI 生成、並經獨立評分者檢核過的固定圖庫，每位參與者看到的是同一批材料。這樣做是為了讓所有參與者面對強度完全等值的比較條件。您在畫布上留下的筆跡僅用於本研究之分析。</p>
+    <p class="n" id="stat" style="display:none"></p>
+    <button class="btn" id="dl">下載 JSON</button>
+    <button class="btn ghost" id="again">回到設定</button>
+    <pre id="pre"></pre>
+  </div>
+
+</div>
+
+<script>
+/* =====================================================================
+   Study 3 — 前置執行深度 × 方案符合度（3×3 混合設計）
+   A（受試者間）：A1 無產出 / A2 文字規格 / A3 手繪草圖
+   B（受試者內）：B1 完全符合 / B2 部分偏離 / B3 明顯偏離
+   刺激為預先製作並經真值檢核的固定圖庫，不做即時生成。
+===================================================================== */
+
+const GAS_URL    = window.GAS_URL || "";
+const GAS_SECRET = window.GAS_SECRET || "";
+const URLQ = new URLSearchParams(location.search);
+const IMG_BASE = URLQ.get("img") || window.IMG_BASE || "./stimuli/";
+const CONFIG = {
+  formal: URLQ.get("run")==="1",
+  auto:   URLQ.get("auto")==="1",
+  /* A1 組的等化構思時長：A1 無需產出，作業時間會系統性短於 A2/A3，
+     若不等化，組間差異將與「接觸簡報的時間長短」混淆。 */
+  think:  Math.max(10, parseInt(URLQ.get("think")||"90",10)),
+  /* 發散思考採固定時長，避免固定題數把流暢度上限鎖死 */
+  idea:   Math.max(10, parseInt(URLQ.get("idea")||"90",10)),
+  version:"s3-v4.0-fixation"
+};
+const BACKUP="study3v4_pending_";
+
+/* ---------- 後端 ---------- */
+function send(data,att){
+  att=att||1;
+  return fetch(GAS_URL,{method:"POST",mode:"no-cors",body:JSON.stringify(data)})
+    .then(()=>true)
+    .catch(()=>att<3 ? new Promise(r=>setTimeout(r,att===1?1000:3000)).then(()=>send(data,att+1)) : false);
+}
+function backup(d){ try{ const k=BACKUP+(d.meta.pid||"x")+"_"+Date.now(); localStorage.setItem(k,JSON.stringify(d)); return k; }catch(e){ return null; } }
+(function resend(){
+  if(!GAS_URL) return;
+  let ks; try{ ks=Object.keys(localStorage).filter(k=>k.indexOf(BACKUP)===0); }catch(e){ return; }
+  ks.forEach(k=>{ let d; try{ d=JSON.parse(localStorage.getItem(k)); }catch(e){ localStorage.removeItem(k); return; }
+    send(d).then(ok=>{ if(ok) try{localStorage.removeItem(k);}catch(e){} }); });
+})();
+function assign(att){
+  att=att||1;
+  return fetch(GAS_URL+"?action=assign&secret="+encodeURIComponent(GAS_SECRET))
+    .then(r=>r.json())
+    .then(j=>{ if(j&&j.ok) return j; const e=new Error(j&&j.error||"fail"); e.code=j&&j.error; throw e; })
+    .catch(e=>{ if(e.code==="forbidden") throw e;
+      if(att<3) return new Promise(r=>setTimeout(r,att===1?1000:3000)).then(()=>assign(att+1));
+      throw e; });
+}
+
+/* =====================================================================
+   設計簡報：四條規格，全部為肯定式、可自輪廓判讀、可獨立違反
+===================================================================== */
+const THEMES = {
+  lamp: { id:"lamp", name:"桌燈", practice:true,
+    brief:"為一款書桌用的閱讀桌燈設計外型。",
+    specs:["燈罩為向下張開的寬錐形",
+           "燈臂在中段明顯彎折成一個角度",
+           "底座寬而扁平，明顯寬於燈臂",
+           "燈罩與燈臂之間有一段明顯的頸部"] },
+  mug:  { id:"mug", name:"隨行杯",
+    brief:"為一款戶外用的隨行杯設計外型。",
+    specs:["杯口明顯比杯身寬，開口向外張開",
+           "側邊有一個大型環狀把手，環孔足以穿過手指",
+           "底部向外擴出一圈底座",
+           "杯身中段有一圈明顯的收窄"] },
+  chair:{ id:"chair", name:"單椅",
+    brief:"為一張餐桌旁使用的單人椅設計外型。",
+    specs:["椅背明顯高過座面，高度約為座面高度的一倍以上",
+           "椅腳向外斜撇，不垂直於地面",
+           "椅背由三至四根水平橫桿構成",
+           "座面前緣呈明顯圓弧"] },
+  bag:  { id:"bag", name:"後背包",
+    brief:"為一款通勤用的後背包設計外型。",
+    specs:["包體上方有一片圓弧形翻蓋，覆蓋住開口",
+           "正面有一個明顯大於手掌的外掛口袋",
+           "從正面可看見兩條明顯加寬的肩帶",
+           "包體底部明顯比開口窄，呈上寬下窄"] }
+};
+const EXP_THEMES = ["mug","chair","bag"];
+const COMPLIANCE = ["B1","B2","B3"];
+const EXEMPLARS  = ["e1","e2","e3"];
+
+/* 真值（哪幾條規格被違反）刻意「不」放進前端——
+   受試者的四題判定原樣記錄，命中率與 d′ 於離線分析時對照真值表計算。
+   如此即使受試者檢視原始碼也無從得知答案。 */
+
+/* 3×3 拉丁方陣：主題 × 符合度 */
+const LATIN = [
+  { mug:"B1", chair:"B2", bag:"B3" },
+  { mug:"B2", chair:"B3", bag:"B1" },
+  { mug:"B3", chair:"B1", bag:"B2" }
+];
+const ORDERS = [
+  ["mug","chair","bag"], ["mug","bag","chair"], ["chair","mug","bag"],
+  ["chair","bag","mug"], ["bag","mug","chair"], ["bag","chair","mug"]
+];
+
+/* =====================================================================
+   量表
+===================================================================== */
+const AGREE = ["非常不同意","非常同意"];
+const TRIAL_SCALES = [
+  {k:"qual", a:AGREE, items:[   // 依 Besemer & O'Quin CPSS 三維度（Resolution/Elaboration/Novelty）
+    // 各寫一題單題代理指標，非原始多題語意差異量表；若審查要求，
+    // 可擴充為每維度 3–4 題的語意差異版本，見稽核文件說明
+    "這個方案妥善解決了簡報所提出的需求。",
+    "這個方案的造形處理是完整而細緻的。",
+    "這個方案的造形想法是新穎的。"]},
+  {k:"adopt", a:["非常不願意","非常願意"], items:[
+    "我願意以這個方案作為後續發展的起點。"]},
+  {k:"need", a:AGREE, items:[
+    "這個方案需要修改。"]},
+  {k:"own", a:AGREE, items:[    // Van Dyne & Pierce (2004) 之單題探索性指標，非完整量表施測
+    "這個方案反映了我的想法。"]},
+  {k:"trust", a:AGREE, items:[
+    // 依 Jian, Bisantz & Drury (2000) TIAS 12 題量表中四個彼此區隔的構面各取一題
+    // （能力／可預測性／可靠依賴／誠信），非原始 12 題全量表，但涵蓋其主要構面向度，
+    // 較單純的「能力＋依賴」兩題更能反映該量表的多面向本質
+    "這個系統有能力做出符合需求的方案。",
+    "我大致可以預期這個系統會提出什麼樣的方案。",
+    "這個系統的產出是可靠、值得依賴的。",
+    "我願意在設計工作上依賴這個系統。"]},
+  /* SAM（情緒愉悅度／喚醒度）已依前測疲勞回饋、比照事前訂定的精簡預案移除
+     （方法章已載明：若受試者作業時間過長，優先精簡量表、刪 SAM 或 TLX 其一，
+     不動發想任務時長）。TLX 保留，因其「努力程度」現在同時是拆解
+     H3 模態效果與費力程度混淆的共變項（見 sketch_input_validity.md），
+     承擔實際分析功能，SAM 相對可犧牲。 */
+  {k:"tlx", a:["非常低","非常高"], items:[
+    // NASA-TLX（Hart & Staveland, 1988）原六分量表中取心智需求與努力程度兩項，
+    // 此為 HCI 認知型任務常見的縮減用法；不含生理需求／時間壓力／表現／挫折感
+    "心智需求：判斷這個方案是否達成要求，需要多少心智努力？",
+    "努力程度：你為了做出判斷投入了多少努力？"]}
+];
+
+/* =====================================================================
+   狀態
+===================================================================== */
+const S = { pid:"", A:"A3", latin:0, order:[], seq:[], ti:0, t0:0,
+            inter:{}, data:{meta:{},trials:[]}, timers:[] };
+const $ = s=>document.querySelector(s);
+function show(id){ document.querySelectorAll(".screen").forEach(e=>e.classList.remove("on")); $(id).classList.add("on"); }
+function now(){ return Math.round(performance.now()-S.t0); }
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function pidN(p){ const m=String(p).match(/(\d+)/); return m?parseInt(m[1],10):0; }
+function clearT(){ S.timers.forEach(t=>{clearTimeout(t);clearInterval(t);}); S.timers=[]; }
+function bindText(el,fn){ ["input","compositionend","keyup","paste","change"].forEach(e=>el.addEventListener(e,fn)); }
+function pathD(p){ if(!p||!p.length) return ""; let d="M"+p[0][0].toFixed(1)+" "+p[0][1].toFixed(1);
+  for(let i=1;i<p.length;i++) d+=" L"+p[i][0].toFixed(1)+" "+p[i][1].toFixed(1); return d; }
+
+/* ---------- 手繪 ---------- */
+const Sketch = {
+  strokes:[], cur:null, on:false, clears:0, undos:0, tFirst:null, onChange:null,
+  /* 記錄實際輸入方式（touch 手指／pen 觸控筆／mouse 滑鼠）。
+     手指繪製比觸控筆或滑鼠更費力、精度更低，這會讓 A3 與 A2 的差異
+     除了「模態不同」之外，還混入「辛苦程度不同」。記錄下來才能在
+     分析時檢查效果是否跨輸入方式一致，也才能誠實報告樣本的實際組成。 */
+  ptrTypes:{},
+  layer(){ return $("#ink"); },
+  reset(){ this.strokes=[]; this.cur=null; this.on=false; this.clears=0; this.undos=0; this.tFirst=null; this.ptrTypes={}; this.draw(); },
+  loc(e){ const r=$("#stage").getBoundingClientRect();
+    return [Math.max(0,Math.min(400,(e.clientX-r.left)/r.width*400)),
+            Math.max(0,Math.min(400,(e.clientY-r.top)/r.height*400))]; },
+  down(e){ if(!this.on) return; e.preventDefault();
+    const pt=e.pointerType||"unknown"; this.ptrTypes[pt]=(this.ptrTypes[pt]||0)+1;
+    if(this.tFirst==null){ this.tFirst=now(); $("#hint").classList.remove("on"); }
+    this.cur={pts:[this.loc(e)]}; this.strokes.push(this.cur); this.draw(); },
+  move(e){ if(!this.on||!this.cur) return; e.preventDefault();
+    const p=this.loc(e), l=this.cur.pts[this.cur.pts.length-1];
+    if(Math.abs(p[0]-l[0])+Math.abs(p[1]-l[1])<1.4) return;
+    this.cur.pts.push(p); this.draw(); },
+  up(){ if(!this.cur) return; if(this.cur.pts.length<2) this.strokes.pop();
+    this.cur=null; this.draw(); if(this.onChange) this.onChange(); },
+  undo(){ if(this.strokes.length){ this.strokes.pop(); this.undos++; this.draw(); if(this.onChange) this.onChange(); } },
+  clear(){ if(this.strokes.length){ this.strokes=[]; this.clears++; this.draw(); if(this.onChange) this.onChange(); } },
+  draw(){ this.layer().innerHTML=this.strokes.map(s=>'<path d="'+pathD(s.pts)+'"/>').join(""); },
+  metrics(){ let n=0,len=0,x0=1/0,y0=1/0,x1=-1/0,y1=-1/0;
+    this.strokes.forEach(s=>{ n+=s.pts.length;
+      for(let i=1;i<s.pts.length;i++){ const dx=s.pts[i][0]-s.pts[i-1][0], dy=s.pts[i][1]-s.pts[i-1][1]; len+=Math.sqrt(dx*dx+dy*dy); }
+      s.pts.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1]);}); });
+    return {strokes:this.strokes.length, points:n, ink:Math.round(len),
+            bbox_w:isFinite(x0)?Math.round(x1-x0):0, bbox_h:isFinite(y0)?Math.round(y1-y0):0}; }
+};
+(function(){ const w=$("#stage");
+  w.addEventListener("pointerdown",e=>Sketch.down(e));
+  w.addEventListener("pointermove",e=>Sketch.move(e));
+  ["pointerup","pointercancel","pointerleave"].forEach(t=>w.addEventListener(t,()=>Sketch.up()));
+})();
+
+/* =====================================================================
+   題目引擎
+===================================================================== */
+function runSeries(items, label, finalLabel, done){
+  show("#survey");
+  const ans={}; const total=items.length;
+  let idx=0, pend=null;
+  const host=$("#qhost"), bar=$("#pfill"), prog=$("#ptxt"),
+        back=$("#sback"), next=$("#snext"), sc=$("#sscroll");
+  function adv(from){ clearTimeout(pend); pend=setTimeout(()=>{ if(idx===from&&idx<total-1){ idx++; render(); } },260); }
+  function pick(row,b,v,id){ row.querySelectorAll("button").forEach(x=>x.classList.remove("sel"));
+    b.classList.add("sel"); ans[id]=v; next.disabled=false; adv(idx); }
+  function render(){
+    const it=items[idx]; if(!it) return;
+    bar.style.width=(idx/total*100)+"%";
+    prog.textContent=label(idx,total);
+    let head='<div class="q">';
+    if(it.img) head+='<img class="qimg" src="'+it.img+'" alt="">';
+    head+='<div class="qt">'+it.t+'</div>';
+    if(it.sub) head+='<div class="qsub">'+it.sub+'</div>';
+
+    if(it.type==="open"){
+      host.innerHTML=head+'<textarea class="open" id="op" placeholder="'+(it.ph||"")+'"></textarea></div>';
+      const ta=$("#op"); ta.value=ans[it.id]||"";
+      bindText(ta,()=>{ ans[it.id]=ta.value; next.disabled=ta.value.trim().length<(it.min||5); });
+      next.disabled=(ans[it.id]||"").trim().length<(it.min||5);
+    } else if(it.type==="yn"){
+      host.innerHTML=head+'<div class="yn" id="row"></div></div>';
+      const row=$("#row");
+      [["是，有達成",1],["否，未達成",0]].forEach(([lab,v])=>{
+        const b=document.createElement("button"); b.type="button"; b.textContent=lab;
+        if(ans[it.id]===v) b.classList.add("sel");
+        b.onclick=()=>pick(row,b,v,it.id); row.appendChild(b); });
+      next.disabled=ans[it.id]==null;
+    } else if(it.type==="choice"){
+      host.innerHTML=head+'<div class="ch" id="row"></div></div>';
+      const row=$("#row");
+      it.opts.forEach((o,i)=>{ const b=document.createElement("button"); b.type="button"; b.textContent=o;
+        if(ans[it.id]===i+1) b.classList.add("sel");
+        b.onclick=()=>pick(row,b,i+1,it.id); row.appendChild(b); });
+      next.disabled=ans[it.id]==null;
+    } else {
+      host.innerHTML=head+'<div class="anch"><span>1 '+it.a[0]+'</span><span>7 '+it.a[1]+'</span></div><div class="lik" id="row"></div></div>';
+      const row=$("#row");
+      for(let v=1;v<=7;v++){ const b=document.createElement("button"); b.type="button"; b.textContent=v;
+        if(ans[it.id]===v) b.classList.add("sel");
+        b.onclick=()=>pick(row,b,v,it.id); row.appendChild(b); }
+      next.disabled=ans[it.id]==null;
+    }
+    next.textContent = idx<total-1 ? "下一題" : finalLabel();
+    back.style.visibility = idx===0 ? "hidden" : "visible";
+    sc.scrollTop=0;
+  }
+  back.onclick=()=>{ clearTimeout(pend); if(idx>0){ idx--; render(); } };
+  next.onclick=()=>{ clearTimeout(pend);
+    const it=items[idx];
+    if(it.type==="open"){ if((ans[it.id]||"").trim().length<(it.min||5)) return; }
+    else if(ans[it.id]==null) return;
+    if(idx<total-1){ idx++; render(); return; }
+    bar.style.width="100%"; done(ans); };
+  render();
+}
+
+/* =====================================================================
+   設定
+===================================================================== */
+const ANAME={A1:"無產出",A2:"文字規格",A3:"手繪草圖"};
+(function buildSetup(){
+  const g=$("#agrid");
+  ["A1","A2","A3"].forEach(a=>{
+    const b=document.createElement("button"); b.type="button"; b.dataset.a=a;
+    b.innerHTML='<b>'+a+'</b>'+ANAME[a];
+    b.onclick=()=>{ S.A=a; document.querySelectorAll("#agrid button").forEach(x=>x.classList.toggle("sel",x.dataset.a===a)); };
+    g.appendChild(b);
+  });
+  document.querySelectorAll("#agrid button").forEach(x=>x.classList.toggle("sel",x.dataset.a===S.A));
+  $("#pid").value="P"+String(Math.floor(Math.random()*89)+10);
+})();
+$("#go").onclick=()=>{ S.pid=($("#pid").value||"P00").trim(); begin(); };
+
+if(CONFIG.formal){
+  document.body.classList.add("formal");
+  if(CONFIG.auto && GAS_URL){
+    const sc=$("#setup").querySelector(".scroll");
+    sc.innerHTML='<h1 style="font-size:19px;margin:0">正在為您準備…</h1><p class="d">請稍候，不要關閉或重新整理頁面。</p>';
+    $("#go").disabled=true;
+    assign().then(j=>{ S.pid=j.pid; S.A=j.cond; begin(); })
+      .catch(()=>{ sc.innerHTML='<h1 style="font-size:19px;margin:0">連線不太順利</h1><p class="d">請確認網路後重新整理。若仍無法開始，請與研究者聯繫。</p>'; });
+  }
+}
+
+function begin(){
+  const n=pidN(S.pid);
+  S.latin = n % 3;
+  S.order = ORDERS[Math.floor(n/3) % 6];
+  S.seq = [ {theme:"lamp", practice:true, B:"B1", ex:"e1"} ].concat(
+    S.order.map(t=>({ theme:t, practice:false,
+                      B:LATIN[S.latin][t],
+                      ex:EXEMPLARS[Math.floor(Math.random()*3)] })) );
+  S.ti=0;
+  S.data={ meta:{ pid:S.pid, A:S.A, latin:S.latin, order:S.order.join("-"),
+                  version:CONFIG.version, think_sec:CONFIG.think,
+                  vw:innerWidth, vh:innerHeight, dpr:devicePixelRatio||1,
+                  max_touch:(navigator.maxTouchPoints||0),
+                  coarse:(window.matchMedia&&window.matchMedia("(pointer:coarse)").matches)?1:0,
+                  ts:new Date().toISOString(), secret:GAS_SECRET }, trials:[] };
+  $("#hA").textContent=S.A;
+  preSurvey();
+}
+
+/* =====================================================================
+   前測問卷：設計自我效能（Carberry et al. 精簡）＋ AI 態度共變項
+===================================================================== */
+function preSurvey(){
+  $("#hPh").textContent="pre";
+  const items=[
+    {id:"age", type:"choice", t:"請問您的年齡範圍是？", opts:["18–24 歲","25–34 歲","35–44 歲","45 歲以上"]},
+    {id:"design_bg", type:"choice", t:"您接受過設計相關訓練的程度是？",
+     opts:["完全沒有","修過相關課程","設計科系在學或畢業","設計相關工作經驗三年以上"]},
+    {id:"dse_1", a:["完全沒信心","非常有信心"], t:"我有信心把一個文字描述的產品需求，轉化成具體的造形。"},
+    {id:"dse_2", a:["完全沒信心","非常有信心"], t:"我有信心徒手畫出一個產品的外型輪廓。"},
+    {id:"dse_3", a:["完全沒信心","非常有信心"], t:"我有信心判斷一個設計方案有沒有達成它該達成的需求。"},
+    // dse_1–3 依 Carberry, Lee & Ohland (2010) 設計自我效能構念之內容領域自行撰寫，
+    // 非原始量表題目之逐字翻譯（該量表無驗證過的中文版），對應該量表涵蓋的
+    // 「轉譯需求」「產出方案」「評估方案」三類設計活動信心
+    {id:"ai_use", type:"choice", t:"您使用 AI 生圖工具的頻率是？",
+     opts:["從來沒用過","用過幾次","每個月數次","每週一次以上"]},
+    {id:"ai_att_1", a:AGREE, t:"整體而言，AI 生成的設計方案品質是值得信賴的。"},
+    {id:"ai_att_2", a:AGREE, t:"在造形設計上，我認為 AI 的判斷不如人類設計師。"}
+  ];
+  runSeries(items, (i,t)=>"開始前 · 第 "+(i+1)+" / "+t+" 題", ()=>"開始練習",
+    ans=>{ Object.assign(S.data.meta, ans); runTrial(); });
+}
+
+/* =====================================================================
+   試驗
+===================================================================== */
+function runTrial(){
+  clearT();
+  const cfg=S.seq[S.ti], th=THEMES[cfg.theme];
+  S.t0=performance.now();
+  S.inter={ clears:0, undos:0 };
+  Sketch.reset();
+  $("#stage").className="";
+  $("#stageHost").innerHTML='<div id="ph">請先閱讀上方設計簡報</div>';
+  $("#gridBg").style.display="none";
+  $("#hint").classList.remove("on");
+  $("#next").style.display="none";
+  $("#step").textContent = cfg.practice ? "練習" : ((S.ti)+" / 3");
+  $("#hT").textContent = cfg.practice?"practice":("trial "+S.ti);
+  $("#hTheme").textContent = th.name;
+  $("#hB").textContent = cfg.practice?"—":cfg.B;
+  $("#briefT").textContent = th.brief;
+  $("#specL").innerHTML = th.specs.map((s,i)=>'<li><b>'+(i+1)+'</b><span>'+s+'</span></li>').join("");
+  show("#trial");
+  $("#hPh").textContent="produce";
+  produce(th, cfg);
+}
+
+/* 階段一：前置執行（依組別） */
+function produce(th, cfg){
+  S.inter.t_brief=now();
+  if(S.A==="A1") produceA1(th,cfg);
+  else if(S.A==="A2") produceA2(th,cfg);
+  else produceA3(th,cfg);
+}
+
+/* A1：評定規格重要性 + 固定時長構思（不產生方案表徵，但等化曝光時間） */
+function produceA1(th,cfg){
+  $("#stageHost").innerHTML='<div id="ph">本組不需繪製<br>請先閱讀並思考</div>';
+  const items = th.specs.map((s,i)=>({
+    id:"imp_"+(i+1), a:["完全不重要","非常重要"],
+    t:"就這項產品而言，這條要求有多重要？", sub:"「"+s+"」" }));
+  runSeries(items, (i,t)=>"閱讀階段 · 第 "+(i+1)+" / "+t+" 題", ()=>"進入構思",
+    ans=>{ S.inter.importance=ans; S.inter.t_produce_done=now(); think(th,cfg); });
+}
+/* 等化構思時間：只等化「接觸簡報的時長」，不能讓 A1 組因此多做任何
+   產出動作（否則就不是「無產出」組了）。因此這裡加的是「感覺上更可控」
+   的回饋（進度條、分段提示語），不是任務——受試者仍然什麼都不用寫、
+   不用畫，只是不再面對一片空白畫布加一個純數字倒數。
+   分段提示語依序出現，但用詞刻意維持在「回想／想像」層次，
+   不引導受試者做出具體決定或記下任何可被視為外顯產出的內容。 */
+/* 把原本一整塊靜態倒數，拆成「每條規格各一段」的分段結構，段落結束時
+   需要點擊「想清楚了」才會進到下一段。這不是產出——沒有任何文字或
+   圖形被記錄下來，只是「確認想過這一項」的動作，但比一整塊 90 秒的
+   純倒數更有節奏感、更不無聊。
+   總時長刻意維持與 CONFIG.think 相等（四段時長相加＝原本的等化時長），
+   不能提早跳過任何一段——否則 A1 組的實際等化時長會因人而異，
+   跟 A2／A3 的等化邏輯就對不上了。 */
+function think(th,cfg){
+  show("#trial");
+  const specs=th.specs;
+  const segDur=Math.max(2, Math.round(CONFIG.think/specs.length));
+  let segIdx=0, left=segDur, unlocked=false;
+
+  function renderSeg(){
+    unlocked=false; left=segDur;
+    $("#pane").innerHTML='<div class="ui"><span class="ul">思考時間 · 第 '+(segIdx+1)+' / '+specs.length+' 項</span>'+
+      '<p class="hint2" style="margin-top:0">想像一下，如果由你來設計，這一項你會怎麼處理：</p>'+
+      '<p class="hint2" style="font-weight:700;color:#E7ECF2;font-size:15px">「'+specs[segIdx]+'」</p>'+
+      '<div class="pbar" style="margin:10px 0"><i id="thinkBar" style="background:#8FD3B6"></i></div>'+
+      '<div id="clock"></div>'+
+      '<button class="ub" id="segGo" disabled>想清楚了，下一項</button></div>';
+  }
+  renderSeg();
+
+  const tick=()=>{
+    const bar=$("#thinkBar"); if(!bar) return; // 畫面已切換，忽略殘餘 tick
+    const m=Math.floor(Math.max(0,left)/60), s=Math.max(0,left)%60;
+    $("#clock").textContent=m+":"+String(s).padStart(2,"0");
+    bar.style.width=Math.min(100,((segDur-left)/segDur*100))+"%";
+    if(left<=0 && !unlocked){
+      unlocked=true;
+      const go=$("#segGo");
+      go.disabled=false; go.textContent = segIdx<specs.length-1 ? "想清楚了，下一項" : "想清楚了，繼續";
+      go.onclick=()=>{
+        segIdx++;
+        if(segIdx>=specs.length){ clearInterval(iv); S.inter.t_think_done=now(); referentCheck(th,cfg); }
+        else { renderSeg(); }
+      };
+    }
+    left--;
+  };
+  tick(); const iv=setInterval(tick,1000); S.timers.push(iv);
+}
+
+/* A2：撰寫文字規格 */
+function produceA2(th,cfg){
+  $("#stageHost").innerHTML='<div id="ph">本組以文字描述<br>不需繪製</div>';
+  $("#pane").innerHTML='<div class="ui"><span class="ul">STEP 1 — 寫出你的方案</span>'+
+    '<textarea class="ta" id="spec" placeholder="用文字描述你會怎麼設計這個「'+th.name+'」的外型。"></textarea>'+
+    '<button class="ub" id="sgo" disabled>完成，繼續</button>'+
+    '<p class="hint2" id="sh">還需要再寫 20 個字。上方四條要求都要照顧到。</p></div>';
+  const ta=$("#spec"), go=$("#sgo"), h=$("#sh");
+  bindText(ta,()=>{ const n=ta.value.trim().length; go.disabled=n<20;
+    h.textContent = n<20 ? "還需要再寫 "+(20-n)+" 個字。上方四條要求都要照顧到。"
+                         : "上方四條要求都要照顧到。寫得越具體越好。"; });
+  go.onclick=()=>{ S.inter.spec_text=ta.value.trim(); S.inter.spec_len=S.inter.spec_text.length;
+    S.inter.t_produce_done=now(); referentCheck(th,cfg); };
+}
+
+/* A3：手繪草圖 */
+function produceA3(th,cfg){
+  $("#stageHost").innerHTML="";
+  $("#gridBg").style.display="block";
+  $("#stage").className="draw";
+  Sketch.on=true;
+  $("#hint").textContent="直接用手指在上面畫";
+  $("#hint").classList.add("on");
+  $("#pane").innerHTML='<div class="ui"><span class="ul">STEP 1 — 畫出你的方案</span>'+
+    '<div class="tools"><button class="mini" id="undo">← 退一筆</button>'+
+    '<button class="mini" id="clr" style="flex:1">全部清掉重畫</button></div>'+
+    '<button class="ub" id="sgo" disabled>完成，繼續</button>'+
+    '<p class="hint2" id="sh">請至少畫 2 筆，把主要輪廓畫出來。</p></div>';
+  const go=$("#sgo"), h=$("#sh");
+  Sketch.onChange=()=>{ const m=Sketch.metrics(); const ok=m.strokes>=2&&m.ink>=220;
+    go.disabled=!ok;
+    h.textContent = ok ? "上方四條要求都要畫進去。線條不必漂亮，畫得出結構就好。"
+                       : (m.strokes<2 ? "請至少畫 2 筆，把主要輪廓畫出來。" : "再多畫一點，把輪廓畫完整一些。"); };
+  $("#undo").onclick=()=>Sketch.undo();
+  $("#clr").onclick=()=>Sketch.clear();
+  go.onclick=()=>{
+    Sketch.on=false;
+    const m=Sketch.metrics();
+    const pts=Object.keys(Sketch.ptrTypes);
+    Object.assign(S.inter,{ input_types:pts.join("+"),
+      input_primary: pts.sort((a,b)=>Sketch.ptrTypes[b]-Sketch.ptrTypes[a])[0]||"",
+      stroke_count:m.strokes, point_count:m.points, ink:m.ink,
+      bbox_w:m.bbox_w, bbox_h:m.bbox_h, clears:Sketch.clears, undos:Sketch.undos,
+      t_first_stroke:Sketch.tFirst, t_produce_done:now(),
+      strokes:Sketch.strokes.map(s=>s.pts.map(p=>[Math.round(p[0]),Math.round(p[1])])) });
+    referentCheck(th,cfg);
+  };
+}
+
+/* =====================================================================
+   階段二：呈現 AI 方案
+   ⚠️ 受試者自身產出於此刻起完全移除，不再顯示。
+   若草圖留在畫面上，任務將退化為並排知覺配對，測到的不再是內化表徵
+   造成的固著，而是視覺比對能力；且 A1 組本無產出可顯示，隱藏才能
+   使三組面對相同的評估情境。
+===================================================================== */
+/* 表徵形成度檢核：在看到 AI 方案「之前」問，三組問法平行但貼合各自作業。
+   這是對「對照物是否真的形成」的操弄檢核——本研究的機制假設是
+   前置產出提供一個可資比較的具體對照物，若受試者根本沒形成清楚的
+   想法（例如手指在手機上畫不出他要的東西），該機制就不該預期成立。
+   放在方案呈現前，避免受試者看到方案後回頭合理化自己的產出。 */
+function referentCheck(th,cfg){
+  $("#hPh").textContent="refcheck";
+  const t = S.A==="A1" ? "我心裡對這個產品的造形，已經有清楚的想法。"
+          : S.A==="A2" ? "我寫下的描述，抓到了我心裡想的樣子。"
+                       : "我畫出來的草圖，抓到了我心裡想的樣子。";
+  const items=[{id:"refclear", a:AGREE, t:t}];
+  runSeries(items, ()=>"作答前確認", ()=>"繼續",
+    ans=>{ S.inter.ref_clear=ans.refclear; reveal(th,cfg); });
+}
+
+function reveal(th,cfg){
+  $("#hPh").textContent="evaluate";
+  show("#trial");   // referentCheck 走的是問卷畫面，這裡要切回試驗畫面
+  Sketch.layer().innerHTML="";
+  Sketch.on=false;
+  $("#gridBg").style.display="none";
+  $("#stage").className="lock";
+  const src = IMG_BASE + cfg.theme + "_" + cfg.B + "_" + cfg.ex + ".png";
+  S.inter.stim = cfg.theme+"_"+cfg.B+"_"+cfg.ex;
+  $("#stageHost").innerHTML='<img id="stim" src="'+src+'" alt="">';
+  $("#stim").onerror=()=>{ $("#stageHost").innerHTML='<div id="ph">[ 刺激圖尚未就緒 ]<br>'+esc(S.inter.stim)+'</div>';
+    S.inter.stim_missing=1; };
+  S.inter.t_stim_shown=now();
+  $("#pane").innerHTML='<div class="ui"><span class="ul">AI 提出的方案</span>'+
+    '<p class="hint2" style="margin-top:0">這是 AI 針對同一份設計簡報提出的方案。請仔細看過之後，回答關於它的問題。</p></div>';
+  const n=$("#next");
+  n.style.display="block"; n.textContent="看完了，開始評估";
+  n.onclick=()=>{ S.inter.t_eval_start=now(); evaluate(th,cfg); };
+}
+
+/* =====================================================================
+   階段三：評估
+   規格逐條二元判定（→ 離線計算 d′ 與 c）→ 量表 → 修改意圖開放作答
+===================================================================== */
+function evaluate(th,cfg){
+  const src = IMG_BASE + cfg.theme + "_" + cfg.B + "_" + cfg.ex + ".png";
+  const isPractice=cfg.practice;
+  let items = th.specs.map((s,i)=>({
+    id:"judge_"+(i+1), type:"yn", img:src,
+    t:"這個方案有沒有達成這條要求？", sub:"「"+s+"」" }));
+
+  /* 練習試驗的資料不會被分析，讓受試者把 22 題全部作答一次是純粹的浪費。
+     這裡只保留判斷題（學會怎麼判斷符合度，這是核心操作），量表部分
+     只留 3 題代表性題目（示範同意量表的操作方式即可，不用每個構念都練一遍）。 */
+  if(isPractice){
+    items.push({id:"qual_1", t:TRIAL_SCALES[0].items[0], a:TRIAL_SCALES[0].a});
+    items.push({id:"adopt_1", t:TRIAL_SCALES[1].items[0], a:TRIAL_SCALES[1].a});
+    items.push({id:"trust_1", t:TRIAL_SCALES[4].items[0], a:TRIAL_SCALES[4].a});
+  } else {
+    TRIAL_SCALES.forEach(sc=>{
+      if(sc.custom) sc.custom.forEach(c=>items.push({id:sc.k+"_"+c.id, t:c.t, a:c.a}));
+      else sc.items.forEach((t,i)=>items.push({id:sc.k+"_"+(i+1), t:t, a:sc.a}));
+    });
+  }
+
+  runSeries(items,
+    (i,t)=> (isPractice?"練習（不計入分析）":"第 "+S.ti+" / 3 個方案")+" · 第 "+(i+1)+" / "+t+" 題",
+    ()=> "提出改進方向",
+    ans=>{ S.inter.t_scales_done=now(); diverge(th,cfg,ans); });
+}
+
+/* =====================================================================
+   階段四：改進方向發想（固著代價的行為指標）
+   ---------------------------------------------------------------------
+   為什麼需要這一關：固著率只測到「傾向」——修改提案趨同於自己的方案。
+   但趨同不等於比較差（也許他原本的方案本來就好）。若要主張固著造成
+   「解空間窄化」，必須證明它帶來實際損失，否則是論證跳躍。
+   本任務採發散思考的標準作法：固定時長、盡量多提不同方向，
+   事後計算流暢度（提案數）、變通度（涵蓋的不同面向數）與獨創性
+   （相對於全樣本的統計稀有度）。若高固著者的變通度與獨創性較低，
+   代價才算被測到。
+   固定時長而非固定題數：題數固定會把流暢度上限鎖死，測不出組間差異。
+   欄位分列而非單一文字框：讓編碼單位由受試者自己切分，
+   免除事後從段落中切分提案的判斷歧異，提升編碼信度。
+===================================================================== */
+function diverge(th,cfg,scaleAns){
+  $("#hPh").textContent="diverge";
+  show("#trial");
+  const src = IMG_BASE + cfg.theme + "_" + cfg.B + "_" + cfg.ex + ".png";
+  $("#stage").className="lock";
+  $("#stageHost").innerHTML='<img src="'+src+'" alt="">';
+  $("#next").style.display="none";
+
+  const isPractice=cfg.practice;
+  const t0=now();
+  /* 練習試驗只需要示範「這個畫面怎麼操作」，不需要跑滿正式時長；
+     正式試驗的時長是核心依變項，維持不動。 */
+  let left = isPractice ? Math.min(CONFIG.idea, 25) : CONFIG.idea;
+  let fired=false;
+  const MIN_CHARS=4, MIN_IDEAS = isPractice ? 1 : 2;
+
+  $("#pane").innerHTML='<div class="ui"><span class="ul">改進方向</span>'+
+    '<p class="hint2" style="margin-top:0">在時間內盡量提出<b>不同</b>的改進方向，越多越好。每一項寫一個方向、至少 '+MIN_CHARS+' 個字（例如「把握把改大一點」）。</p>'+
+    '<div id="clock"></div>'+
+    '<div id="ideas"></div>'+
+    '<button class="mini" id="addIdea" style="width:100%;margin-top:8px">＋ 再加一項</button>'+
+    '<p class="hint2" id="ideaStatus" style="text-align:center;margin:8px 0 0"></p>'+
+    '<button class="ub" id="dgo" disabled>完成，繼續</button></div>';
+
+  const wrap=$("#ideas"), status=$("#ideaStatus");
+  function addField(){
+    const i=wrap.children.length+1;
+    const d=document.createElement("div");
+    d.style.marginTop="8px";
+    d.innerHTML='<textarea class="ta" style="min-height:46px" data-i="'+i+'" placeholder="改進方向 '+i+'"></textarea>'+
+      '<p class="hint2" style="margin:4px 0 0;font-size:11px" data-status></p>';
+    wrap.appendChild(d);
+    const ta=d.querySelector("textarea"), st=d.querySelector("[data-status]");
+    const upd=()=>{
+      const n=ta.value.trim().length;
+      st.textContent = n===0 ? "" : (n<MIN_CHARS ? "還需要 "+(MIN_CHARS-n)+" 個字" : "✓ 這項算數了");
+      st.style.color = n>=MIN_CHARS ? "#8FD3B6" : "#6C7684";
+      check();
+    };
+    bindText(ta,upd);
+    ta.focus();
+  }
+  function collect(){
+    return [...wrap.querySelectorAll("textarea")].map(t=>t.value.trim()).filter(v=>v.length>=MIN_CHARS);
+  }
+  function check(){
+    const n=collect().length;
+    $("#dgo").disabled = n<MIN_IDEAS;
+    status.textContent = n>=MIN_IDEAS
+      ? "已有 "+n+" 項算數了，可以繼續，也可以再多寫幾項。"
+      : "已有 "+n+" 項算數，還需要至少 "+(MIN_IDEAS-n)+" 項（每項 "+MIN_CHARS+" 字以上）才能繼續。";
+  }
+  addField(); if(!isPractice) addField(); check();
+
+  $("#addIdea").onclick=()=>{ if(wrap.children.length<12) addField(); };
+  $("#dgo").onclick=()=>done(false);
+
+  const tick=()=>{
+    const m=Math.floor(Math.max(0,left)/60), sec=Math.max(0,left)%60;
+    $("#clock").textContent=m+":"+String(sec).padStart(2,"0");
+    if(left<=0){ clearInterval(iv); done(true); }
+    left--;
+  };
+  tick(); const iv=setInterval(tick,1000); S.timers.push(iv);
+
+  function done(timeout){
+    if(fired) return; fired=true;
+    clearInterval(iv);
+    const ideas=collect();
+    S.inter.rev_ideas=ideas;
+    S.inter.rev_count=ideas.length;
+    S.inter.rev_chars=ideas.join("").length;
+    S.inter.rev_time_used=now()-t0;
+    S.inter.rev_timeout=timeout?1:0;
+    S.inter.t_done=now();
+    const isPractice=cfg.practice;
+    S.data.trials.push({
+      trial: isPractice?0:S.ti, practice:isPractice,
+      theme:cfg.theme, compliance:cfg.B, exemplar:cfg.ex,
+      A:S.A, interaction:S.inter, answers:scaleAns,
+      t:new Date().toISOString()
+    });
+    S.ti++;
+    if(S.ti < S.seq.length) runTrial(); else postSurvey();
+  }
+}
+
+/* =====================================================================
+   事後問卷
+===================================================================== */
+function postSurvey(){
+  $("#hPh").textContent="post";
+  const items=[
+    {id:"ac", a:AGREE, t:"這一題請直接選擇「2」，以確認您仍在專心作答。"},
+    {id:"strategy", type:"choice", t:"在評估那些方案時，你主要是在跟什麼比較？",
+     opts:["跟簡報上那幾條要求比","跟我自己心裡想的方案比","兩者都有，以要求為主","兩者都有，以自己的方案為主"]},
+    {id:"guess", type:"open", min:4,
+     t:"你覺得這個研究想探討什麼？", sub:"沒有標準答案，寫下你的猜測即可。",
+     ph:"寫下你的想法…"}
+  ];
+  runSeries(items, (i,t)=>"最後幾題 · 第 "+(i+1)+" / "+t+" 題", ()=>"完成",
+    ans=>{ Object.assign(S.data.meta, {ac:ans.ac, strategy:ans.strategy, guess:ans.guess}); finish(); });
+}
+
+function finish(){
+  show("#done");
+  $("#hPh").textContent="done";
+  S.data.meta.completed=new Date().toISOString();
+  const json=JSON.stringify(S.data,null,2);
+  $("#pre").textContent=json;
+  if(CONFIG.formal){ ["#pre","#dl","#again"].forEach(s=>$(s).style.display="none"); }
+  if(GAS_URL){
+    send(S.data).then(ok=>{ if(!ok){ const k=backup(S.data);
+      const st=$("#stat"); st.style.display="block";
+      st.textContent="資料傳送時網路不穩定，已先保存在您的裝置上，稍後會自動重試。若方便請截圖並告知研究者代碼："+(k?k.slice(-8):S.pid); } });
+  }
+  $("#dl").onclick=()=>{ const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([json],{type:"application/json"}));
+    a.download="study3_"+S.data.meta.pid+"_"+S.A+".json"; a.click(); };
+  $("#again").onclick=()=>show("#setup");
+}
+</script>
+</body>
+</html>
